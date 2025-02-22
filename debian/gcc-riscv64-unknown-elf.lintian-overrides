@@ -1,0 +1,8 @@
+#
+# All of the libgcc bits are non-native, which is kinda the point
+#
+gcc-riscv64-unknown-elf binary: binary-from-other-architecture
+gcc-riscv64-unknown-elf binary: no-manual-page
+gcc-riscv64-unknown-elf binary: spelling-error-in-binary
+gcc-riscv64-unknown-elf binary: static-library-has-unneeded-sections
+gcc-riscv64-unknown-elf binary: unstripped-static-library

@@ -1,4 +1,145 @@
 #!/usr/bin/make -f
+export DH_VERBOSE=1
+
+include /usr/share/dpkg/pkg-info.mk
+
+target=riscv64-unknown-elf
+
+GCC_VERSION=14.2.0
+
+DEB_SOURCE_VERSION=$(shell dpkg-parsechangelog -S Version)
+
+package=gcc-riscv64-unknown-elf
+top_dir=$(shell pwd)
+gcc_dir=debian
+doc_dir=/usr/share/doc/$(package)
+build_doc_dir=$(top_dir)/debian/$(package)$(doc_dir)
+stampdir=debian/stamp
+
+source_version := $(GCC_VERSION)
+deb_version := $(source_version)+$(DEB_SOURCE_VERSION)
+deb_upstream_version := $(GCC_VERSION)
+base_version := $(shell echo $(deb_version) | sed -e 's/\([1-9]\.[0-9]\).*-.*/\1/')
+
+upstream_dir=gcc-$(GCC_VERSION)
+
+unpack_stamp=$(stampdir)/unpack
+tar_stamp=$(stampdir)/tar
+
+src_dir=$(upstream_dir)
+build_dir=build
+
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all,-format
+ifeq ($(DEB_BUILD_ARCH),mips64el)
+export DEB_CFLAGS_MAINT_APPEND=-mxgot
+export DEB_CXXFLAGS_MAINT_APPEND=-mxgot
+endif
+ifeq ($(DEB_BUILD_ARCH),m68k)
+export DEB_CFLAGS_MAINT_APPEND=-mlong-jump-table-offsets
+export DEB_CXXFLAGS_MAINT_APPEND=-mlong-jump-table-offsets
+endif
+build_flags:=$(shell dpkg-buildflags --export=configure) INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
+
+target_tools=\
+	AR_FOR_TARGET=$(target)-ar \
+	AS_FOR_TARGET=$(target)-as \
+	LD_FOR_TARGET=$(target)-ld \
+	NM_FOR_TARGET=$(target)-nm \
+	OBJDUMP_FOR_TARGET=$(target)-objdump \
+	RANLIB_FOR_TARGET=$(target)-ranlib \
+	READELF_FOR_TARGET=$(target)-readelf \
+	STRIP_FOR_TARGET=$(target)-strip
+
+host_tools=\
+        SED=/bin/sed \
+        SHELL=/bin/sh \
+        BASH=/bin/bash \
+        CONFIG_SHELL=/bin/bash
+
+
+configure_flags = \
+	--enable-languages=c,c++ \
+	--prefix=/usr/lib \
+	--infodir=/usr/share/doc/$(package)/info \
+	--mandir=/usr/share/man \
+	--htmldir=/usr/share/doc/$(package)/html \
+	--pdfdir=/usr/share/doc/$(package)/pdf \
+	--bindir=/usr/bin \
+	--libexecdir=/usr/lib \
+	--libdir=/usr/lib \
+	--with-system-zlib \
+	--enable-multilib \
+	--disable-decimal-float \
+	--disable-libffi \
+	--disable-libgomp \
+	--disable-libmudflap \
+	--disable-libquadmath \
+	--disable-libssp \
+	--disable-libstdcxx-pch \
+	--disable-libstdcxx \
+	--disable-nls \
+	--disable-shared \
+	--disable-threads \
+	--with-arch=rv64imafdc \
+	--enable-tls \
+	--build=$(DEB_BUILD_GNU_TYPE) \
+	--host=$(DEB_HOST_GNU_TYPE) \
+	--target=$(target) \
+	--with-gnu-as \
+	--with-gnu-ld \
+	--with-headers=no \
+	--without-newlib \
+	"--with-pkgversion=$(deb_version)" \
+	--without-included-gettext \
+	$(host_tools) \
+	$(target_tools) \
+	$(build_flags) \
+	CFLAGS_FOR_TARGET='-Os -mcmodel=medany' CXXFLAGS_FOR_TARGET='-Os -mcmodel=medany'
 
 %:
-	dh $@
+	dh $@ -D$(src_dir) -B$(build_dir)
+
+$(unpack_stamp): $(tar_stamp)
+	set -ex; \
+		cd gcc-*; \
+		for patch in ../debian/patches/*.patch; do \
+			echo Applying patch "$$patch"; \
+			patch -p1 < "$$patch"; \
+		done
+	touch $@
+
+$(tar_stamp):
+	tar xf $(gcc_dir)/gcc-*.tar.*
+	mkdir -p $(stampdir)
+	touch $@
+
+override_dh_autoreconf: $(unpack_stamp)
+	autoreconf2.69 -f -i $(upstream_dir)
+
+override_dh_auto_configure: $(unpack_stamp)
+	mkdir -p $(build_dir)
+	dh_auto_configure -D$(src_dir) -B$(build_dir) -- $(configure_flags)
+
+override_dh_auto_clean:
+	rm -rf $(upstream_dir) $(build_dir) debian/tmp $(stampdir)
+	dh_autoreconf_clean
+
+override_dh_auto_test:
+	@echo "no testing, that's way too painful"
+#	dh_auto_test -D$(src_dir) -B$(build_dir) --max-parallel=1
+
+override_dh_gencontrol:
+	dh_gencontrol -a -- -v$(deb_version) -Vlocal:Version=$(deb_upstream_version) -Vgcc:Version=$(source_version)
+
+override_dh_auto_install:
+	mkdir -p $(top_dir)/debian/tmp
+	cd build && make install DESTDIR=$(top_dir)/debian/tmp
+
+override_dh_installchangelogs:
+	dh_installchangelogs $(upstream_dir)/ChangeLog
+
+override_dh_compress:
+	dh_compress -Xexamples/
+
+override_dh_strip:
+	dh_strip -X.a
