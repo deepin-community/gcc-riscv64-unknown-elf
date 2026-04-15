@@ -1,3 +1,9 @@
+gcc-riscv64-unknown-elf (23deepin1) unstable; urgency=medium
+
+  * use low version binutils.
+
+ -- lhdjply <lhdjply@126.com>  Wed, 15 Apr 2026 13:07:17 +0800
+
 gcc-riscv64-unknown-elf (23) unstable; urgency=medium
 
   * Update to latest binutils with new paths
