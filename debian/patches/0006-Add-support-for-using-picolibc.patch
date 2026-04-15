@@ -1,0 +1,352 @@
+From 355b0c74e65c49d0609007a0bc8b4a9e40fd25bf Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 22 Jan 2026 16:45:06 -0800
+Subject: [PATCH 06/12] Add support for using picolibc
+
+(cherry-picked from 72274d0a421785ed38ad704af1192a7578660e7f)
+
+Selected for *-picolibc-* targets or when --with-picolibc is
+passed to configure.
+
+Add custom options for use with picolibc:
+
+ * '--oslib='. Allows targets to insert an OS library after the C
+   library in the LIB_PATH spec file fragment. This library maps a few
+   POSIX APIs used by picolibc to underlying system capabilities.
+
+ * '--crt0='. Allows targets to use an alternate crt0 in place of the
+   usual one as provided by Picolibc. Picolibc provides a range of
+   crt0 versions which this can be used to select among.
+
+ * '--printf=' and '--scanf='. Allows targets to customize the version
+   of printf and scanf linked from the C library.
+
+Adds some new preprocessor variables allowing the C library to adjust
+the specfile generation process without affecting target changes:
+
+ * LIBC_CPP_SPEC. A specfile fragment appended to cpp_spec. Picolibc
+   uses this to add preprocessor definitions when the --printf and
+   --scanf options are provided so that applications can detect the
+   available printf and scanf versions.
+
+ * LIBC_LINK_SPEC. A specfile fragment appended to link_spec. Picolibc
+   uses this to implement the --printf and --scanf options, passing
+   suitable --defsym options to the linker.
+
+Documents the new driver options and target macros.
+
+gcc/
+	* config.gcc: Add clause for picolibc.
+	* config/picolibc-spec.h: New file.
+	* config/picolibc.opt: Likewise.
+	* config/picolibc.opt.urls: Likewise.
+	* configure.ac: Add support for --with-picolibc.
+	* configure: Rebuilt.
+	* gcc.cc (LIBC_CPP_SPEC): Provide default definition.
+	(LIBC_LINK_SPEC): Likewise.
+	(cpp_spec): Include LIBC_CPP_SPEC.
+	(link_spec): Similarly for LIBC_LINK_SPEC.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config.gcc               | 18 ++++++++++++
+ gcc/config/picolibc-spec.h   | 57 ++++++++++++++++++++++++++++++++++++
+ gcc/config/picolibc.opt      | 47 +++++++++++++++++++++++++++++
+ gcc/config/picolibc.opt.urls |  2 ++
+ gcc/configure                | 18 +++++++++---
+ gcc/configure.ac             |  3 ++
+ gcc/gcc.cc                   | 17 +++++++++--
+ 7 files changed, 156 insertions(+), 6 deletions(-)
+ create mode 100644 gcc/config/picolibc-spec.h
+ create mode 100644 gcc/config/picolibc.opt
+ create mode 100644 gcc/config/picolibc.opt.urls
+
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 087aaa7be..ef4ebd305 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -3665,6 +3665,24 @@ case ${target} in
+ 	;;
+ esac
+ 
++# picolibc systems
++case "${target}_${with_picolibc}" in
++*-picolibc-*|*_yes)
++	default_use_cxa_atexit=yes
++	use_gcc_stdint=none
++	# add newlib-stdint.h if not already present
++	case "${tm_file}" in
++	*newlib-stdint.h*)
++		;;
++	*)
++		tm_file="${tm_file} newlib-stdint.h"
++		;;
++	esac
++	tm_file="${tm_file} picolibc-spec.h"
++	extra_options="${extra_options} picolibc.opt"
++	;;
++esac
++
+ # Assume the existence of indirect function support and allow the use of the
+ # resolver attribute.
+ case ${target} in
+diff --git a/gcc/config/picolibc-spec.h b/gcc/config/picolibc-spec.h
+new file mode 100644
+index 000000000..def290ee0
+--- /dev/null
++++ b/gcc/config/picolibc-spec.h
+@@ -0,0 +1,57 @@
++/* Configuration common to all targets running Picolibc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
++
++   This file is part of GCC.
++
++   GCC is free software; you can redistribute it and/or modify it
++   under the terms of the GNU General Public License as published
++   by the Free Software Foundation; either version 3, or (at your
++   option) any later version.
++
++   GCC is distributed in the hope that it will be useful, but WITHOUT
++   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
++   License for more details.
++
++   Under Section 7 of GPL version 3, you are granted additional
++   permissions described in the GCC Runtime Library Exception, version
++   3.1, as published by the Free Software Foundation.
++
++   You should have received a copy of the GNU General Public License and
++   a copy of the GCC Runtime Library Exception along with this program;
++   see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#define PICOLIBC_LD "picolibc.ld"
++
++/* Default to local-exec TLS model.  */
++#undef OS_CC1_SPEC
++#define OS_CC1_SPEC " %{!ftls-model=*:-ftls-model=local-exec}"
++
++/* Pass along preprocessor definitions when --printf or --scanf are specified */
++#define LIBC_CPP_SPEC				\
++  " %{-printf=*: -D_PICOLIBC_PRINTF='%*'}"	\
++  " %{-scanf=*: -D_PICOLIBC_SCANF='%*'}"
++
++/*
++ * Add picolibc.ld if not using -shared, -r or -T and we can find it.
++ * Define vfprintf if --printf is set
++ * Define vfscanf if --scanf is set
++ */
++#define LIBC_LINK_SPEC							\
++  " %{!shared:%{!r:%{!T*: %:if-exists-then-else(%:find-file(" PICOLIBC_LD ") -T%:find-file(" PICOLIBC_LD "))}}}" \
++  " %{-printf=*:--defsym=" USER_LABEL_PREFIX "vfprintf=" USER_LABEL_PREFIX "__%*_vfprintf}" \
++  " %{-scanf=*:--defsym=" USER_LABEL_PREFIX "vfscanf=" USER_LABEL_PREFIX "__%*_vfscanf}"
++
++/*
++ * Place the C library, libgcc and any oslib in a link group to resolve
++ * interdependencies
++ */
++#undef LIB_SPEC
++#define LIB_SPEC "--start-group -lc %{-oslib=*:-l%*} %(libgcc) --end-group"
++
++/* Select alternate crt0 version if --crt0 is specified */
++#undef  STARTFILE_SPEC
++#define STARTFILE_SPEC "%{-crt0=*:crt0-%*%O%s; :crt0%O%s}"
++
++#define EH_TABLES_CAN_BE_READ_ONLY 1
+diff --git a/gcc/config/picolibc.opt b/gcc/config/picolibc.opt
+new file mode 100644
+index 000000000..e68e5d000
+--- /dev/null
++++ b/gcc/config/picolibc.opt
+@@ -0,0 +1,47 @@
++; Processor-independent options for picolibc.
++;
++; Copyright (C) 2026 Free Software Foundation, Inc.
++;
++; This file is part of GCC.
++;
++; GCC is free software; you can redistribute it and/or modify it under
++; the terms of the GNU General Public License as published by the Free
++; Software Foundation; either version 3, or (at your option) any later
++; version.
++;
++; GCC is distributed in the hope that it will be useful, but WITHOUT ANY
++; WARRANTY; without even the implied warranty of MERCHANTABILITY or
++; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++; for more details.
++;
++; You should have received a copy of the GNU General Public License
++; along with GCC; see the file COPYING3.  If not see
++; <http://www.gnu.org/licenses/>.
++
++-oslib
++Driver Separate Alias(-oslib=)
++
++-oslib=
++Driver Joined
++Specify an OS support library to load after libc.
++
++-crt0
++Driver Separate Alias(-crt0=)
++
++-crt0=
++Driver Joined
++Specify an alternate startup file.
++
++-printf
++Driver Separate Alias(-printf=)
++
++-printf=
++Driver Joined
++Specify the printf version linked from libc.
++
++-scanf
++Driver Separate Alias(-scanf=)
++
++-scanf=
++Driver Joined
++Specify the scanf version linked from libc.
+diff --git a/gcc/config/picolibc.opt.urls b/gcc/config/picolibc.opt.urls
+new file mode 100644
+index 000000000..b3a57d15a
+--- /dev/null
++++ b/gcc/config/picolibc.opt.urls
+@@ -0,0 +1,2 @@
++; Autogenerated by regenerate-opt-urls.py from gcc/config/picolibc.opt and generated HTML
++
+diff --git a/gcc/configure b/gcc/configure
+index 16965953f..902beeac3 100755
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -1003,6 +1003,7 @@ with_changes_root_url
+ enable_languages
+ with_multilib_list
+ with_multilib_generator
++with_picolibc
+ with_zstd
+ with_zstd_include
+ with_zstd_lib
+@@ -1890,6 +1891,8 @@ Optional Packages:
+                           RISC-V, SH and x86-64 only)
+   --with-multilib-generator
+                           Multi-libs configuration string (RISC-V only)
++  --with-picolibc         Support for picolibc, including command line options
++                          and spec rules
+   --with-zstd=PATH        specify prefix directory for installed zstd library.
+                           Equivalent to --with-zstd-include=PATH/include plus
+                           --with-zstd-lib=PATH/lib
+@@ -6299,7 +6302,7 @@ else
+     We can't simply define LARGE_OFF_T to be 9223372036854775807,
+     since some C++ compilers masquerading as C compilers
+     incorrectly reject 9223372036854775807.  */
+-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
++#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+ 		       && LARGE_OFF_T % 2147483647 == 1)
+ 		      ? 1 : -1];
+@@ -6323,7 +6326,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+     We can't simply define LARGE_OFF_T to be 9223372036854775807,
+     since some C++ compilers masquerading as C compilers
+     incorrectly reject 9223372036854775807.  */
+-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
++#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+ 		       && LARGE_OFF_T % 2147483647 == 1)
+ 		      ? 1 : -1];
+@@ -6368,7 +6371,7 @@ else
+     We can't simply define LARGE_OFF_T to be 9223372036854775807,
+     since some C++ compilers masquerading as C compilers
+     incorrectly reject 9223372036854775807.  */
+-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
++#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+ 		       && LARGE_OFF_T % 2147483647 == 1)
+ 		      ? 1 : -1];
+@@ -6392,7 +6395,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+     We can't simply define LARGE_OFF_T to be 9223372036854775807,
+     since some C++ compilers masquerading as C compilers
+     incorrectly reject 9223372036854775807.  */
+-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
++#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
+ 		       && LARGE_OFF_T % 2147483647 == 1)
+ 		      ? 1 : -1];
+@@ -8406,6 +8409,13 @@ else
+ fi
+ 
+ 
++
++# Check whether --with-picolibc was given.
++if test "${with_picolibc+set}" = set; then :
++  withval=$with_picolibc;
++fi
++
++
+ # -------------------------
+ # Checks for other programs
+ # -------------------------
+diff --git a/gcc/configure.ac b/gcc/configure.ac
+index 9f67e6295..6969c1e09 100644
+--- a/gcc/configure.ac
++++ b/gcc/configure.ac
+@@ -1227,6 +1227,9 @@ AC_ARG_WITH(multilib-generator,
+ :,
+ with_multilib_generator=default)
+ 
++AC_ARG_WITH(picolibc,
++[AS_HELP_STRING([--with-picolibc], [Support for picolibc, including command line options and spec rules])])
++
+ # -------------------------
+ # Checks for other programs
+ # -------------------------
+diff --git a/gcc/gcc.cc b/gcc/gcc.cc
+index 4fd87f2c4..ddf5b6e5b 100644
+--- a/gcc/gcc.cc
++++ b/gcc/gcc.cc
+@@ -726,6 +726,13 @@ proper position among the other output files.  */
+ #define CPP_SPEC ""
+ #endif
+ 
++/* libc can define LIBC_CPP_SPEC to provide extra args to the C preprocessor
++   or extra switch-translations. */
++
++#ifndef LIBC_CPP_SPEC
++#define LIBC_CPP_SPEC ""
++#endif
++
+ /* Operating systems can define OS_CC1_SPEC to provide extra args to cc1 and
+    cc1plus or extra switch-translations.  The OS_CC1_SPEC is appended
+    to CC1_SPEC in the initialization of cc1_spec.  */
+@@ -751,6 +758,12 @@ proper position among the other output files.  */
+ #define LINK_SPEC ""
+ #endif
+ 
++/* libc can define LIBC_LINK_SPEC to provide extra args to the linker
++   or extra switch-translations.  */
++#ifndef LIBC_LINK_SPEC
++#define LIBC_LINK_SPEC ""
++#endif
++
+ /* config.h can define LIB_SPEC to override the default libraries.  */
+ #ifndef LIB_SPEC
+ #define LIB_SPEC "%{!shared:%{g*:-lg} %{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}}"
+@@ -1204,14 +1217,14 @@ proper position among the other output files.  */
+ 
+ static const char *asm_debug = ASM_DEBUG_SPEC;
+ static const char *asm_debug_option = ASM_DEBUG_OPTION_SPEC;
+-static const char *cpp_spec = CPP_SPEC;
++static const char *cpp_spec = CPP_SPEC LIBC_CPP_SPEC;
+ static const char *cc1_spec = CC1_SPEC OS_CC1_SPEC;
+ static const char *cc1plus_spec = CC1PLUS_SPEC;
+ static const char *link_gcc_c_sequence_spec = LINK_GCC_C_SEQUENCE_SPEC;
+ static const char *link_ssp_spec = LINK_SSP_SPEC;
+ static const char *asm_spec = ASM_SPEC;
+ static const char *asm_final_spec = ASM_FINAL_SPEC;
+-static const char *link_spec = LINK_SPEC;
++static const char *link_spec = LINK_SPEC LIBC_LINK_SPEC;
+ static const char *lib_spec = LIB_SPEC;
+ static const char *link_gomp_spec = "";
+ static const char *libgcc_spec = LIBGCC_SPEC;
+-- 
+2.51.0
+

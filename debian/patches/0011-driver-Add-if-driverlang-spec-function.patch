@@ -1,0 +1,104 @@
+From cdd7f6500f27fbae5896a5b5349d0309f50af7e9 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 24 Jan 2026 10:34:25 -0800
+Subject: [PATCH 11/12] driver: Add if-driverlang spec function
+
+Provide a way for spec fragments to detect which language specific
+driver is in use. This allows for language-specific functionality to
+be included during linking, like unwind constructors for C++ exception
+handling.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/cp/g++spec.cc |  6 ++++++
+ gcc/gcc.cc        | 31 +++++++++++++++++++++++++++++++
+ gcc/gcc.h         |  3 +++
+ 3 files changed, 40 insertions(+)
+
+diff --git a/gcc/cp/g++spec.cc b/gcc/cp/g++spec.cc
+index 165a91d45..4de78bbba 100644
+--- a/gcc/cp/g++spec.cc
++++ b/gcc/cp/g++spec.cc
+@@ -458,3 +458,9 @@ int lang_specific_pre_link (void)  /* Not used for C++.  */
+ 
+ /* Number of extra output files that lang_specific_pre_link may generate.  */
+ int lang_specific_extra_outfiles = 0;  /* Not used for C++.  */
++
++/* Language target for this driver */
++const char *lang_specific_language (void)
++{
++  return "c++";
++}
+diff --git a/gcc/gcc.cc b/gcc/gcc.cc
+index ddf5b6e5b..34e638cd8 100644
+--- a/gcc/gcc.cc
++++ b/gcc/gcc.cc
+@@ -462,6 +462,7 @@ static const char *debug_level_greater_than_spec_func (int, const char **);
+ static const char *dwarf_version_greater_than_spec_func (int, const char **);
+ static const char *find_fortran_preinclude_file (int, const char **);
+ static const char *join_spec_func (int, const char **);
++static const char *if_driverlang_spec_function (int, const char **);
+ static char *convert_white_space (char *);
+ static char *quote_spec (char *);
+ static char *quote_spec_arg (char *);
+@@ -1808,6 +1809,7 @@ static const struct spec_function static_spec_functions[] =
+   { "dwarf-version-gt",		dwarf_version_greater_than_spec_func },
+   { "fortran-preinclude-file",	find_fortran_preinclude_file},
+   { "join",			join_spec_func},
++  { "if-driverlang",            if_driverlang_spec_function },
+ #ifdef EXTRA_SPEC_FUNCTIONS
+   EXTRA_SPEC_FUNCTIONS
+ #endif
+@@ -11126,6 +11128,35 @@ join_spec_func (int argc, const char **argv)
+   return XOBFINISH (&obstack, const char *);
+ }
+ 
++/* if-driverlang built-in spec function.
++
++   Checks to see if the language-specific driver has specified a
++   language name that matches the first arg. Returns the second arg if
++   so, otherwise returns the third arg if it is present.  */
++
++static const char *
++if_driverlang_spec_function (int argc, const char **argv)
++{
++  const char *language = NULL;
++
++  /* Must have two or three arguments.  */
++  if (argc != 2 && argc != 3)
++    return NULL;
++
++  /* The lang_specific_language function is declared with
++     __attribute__((weak)) making it optional */
++  if (lang_specific_language != NULL)
++    language = lang_specific_language();
++
++  if (language && !strcmp (argv[0], language))
++    return argv[1];
++
++  if (argc == 3)
++    return argv[2];
++
++  return NULL;
++}
++
+ /* If any character in ORIG fits QUOTE_P (_, P), reallocate the string
+    so as to precede every one of them with a backslash.  Return the
+    original string or the reallocated one.  */
+diff --git a/gcc/gcc.h b/gcc/gcc.h
+index 5ba6c9d33..dbf20f8b0 100644
+--- a/gcc/gcc.h
++++ b/gcc/gcc.h
+@@ -88,6 +88,9 @@ extern int n_infiles;
+ /* Number of extra output files that lang_specific_pre_link may generate.  */
+ extern int lang_specific_extra_outfiles;
+ 
++/* Optional function returning the target language of the current driver */
++extern const char *lang_specific_language(void) __attribute__((weak));
++
+ /* A vector of corresponding output files is made up later.  */
+ 
+ extern const char **outfiles;
+-- 
+2.51.0
+

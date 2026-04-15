@@ -1,7 +1,7 @@
-From 9f68cb9b00bc12650dd463aa696effc48ec838cf Mon Sep 17 00:00:00 2001
+From 87679895953c3e060bbb362e9bc6a398b0f6cddc Mon Sep 17 00:00:00 2001
 From: Kito Cheng <kito.cheng@sifive.com>
 Date: Wed, 7 Aug 2019 14:05:50 +0800
-Subject: [PATCH 2/3] Add more multi-lib for rv32 and rv64
+Subject: [PATCH 02/12] Add more multi-lib for rv32 and rv64
 
 Add following new multi-lib set:
  - rv32ea-ilp32e--m rv32ia-ilp32--m rv32if-ilp32f-rv32ifd-c
@@ -174,5 +174,5 @@ index 19f943461..682ffea10 100644
 +march.rv64iafd/mabi.lp64d=march.rv64g/mabi.lp64d \
  march.rv64imafdc/mabi.lp64d=march.rv64gc/mabi.lp64d
 -- 
-2.45.2
+2.51.0
 

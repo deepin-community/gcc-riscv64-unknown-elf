@@ -1,33 +1,22 @@
 #!/usr/bin/make -f
-export DH_VERBOSE=1
 
 include /usr/share/dpkg/pkg-info.mk
 
-target=riscv64-unknown-elf
-
-GCC_VERSION=14.2.0
-
+GCC_VERSION=15.2.0
 DEB_SOURCE_VERSION=$(shell dpkg-parsechangelog -S Version)
+DEB_VERSION := $(GCC_VERSION)-$(DEB_SOURCE_VERSION)
 
-package=gcc-riscv64-unknown-elf
-top_dir=$(shell pwd)
-gcc_dir=debian
-doc_dir=/usr/share/doc/$(package)
-build_doc_dir=$(top_dir)/debian/$(package)$(doc_dir)
-stampdir=debian/stamp
+PACKAGE_GCC_RISCV=gcc-riscv64-unknown-elf
+PACKAGE_GCC_SOURCE=gcc-riscv64-unknown-elf-source
+TARGET_RISCV=riscv64-unknown-elf
+TOP_DIR=$(shell pwd)
+NPROC=$(shell nproc)
 
-source_version := $(GCC_VERSION)
-deb_version := $(source_version)+$(DEB_SOURCE_VERSION)
-deb_upstream_version := $(GCC_VERSION)
-base_version := $(shell echo $(deb_version) | sed -e 's/\([1-9]\.[0-9]\).*-.*/\1/')
-
-upstream_dir=gcc-$(GCC_VERSION)
-
-unpack_stamp=$(stampdir)/unpack
-tar_stamp=$(stampdir)/tar
-
-src_dir=$(upstream_dir)
-build_dir=build
+GCC_TAR_DIR=debian
+GCC_BUILD_DIR_RISCV=$(TOP_DIR)/build-$(TARGET_RISCV)
+GCC_SOURCE_DIR=gcc-$(GCC_VERSION)
+GCC_DEB_TMP_DIR_RISCV=$(TOP_DIR)/debian/$(PACKAGE_GCC_RISCV)-tmp
+GCC_SOURCE_DEB_TMP_DIR=$(TOP_DIR)/debian/$(PACKAGE_GCC_SOURCE)-tmp
 
 export DEB_BUILD_MAINT_OPTIONS=hardening=+all,-format
 ifeq ($(DEB_BUILD_ARCH),mips64el)
@@ -38,37 +27,32 @@ ifeq ($(DEB_BUILD_ARCH),m68k)
 export DEB_CFLAGS_MAINT_APPEND=-mlong-jump-table-offsets
 export DEB_CXXFLAGS_MAINT_APPEND=-mlong-jump-table-offsets
 endif
-build_flags:=$(shell dpkg-buildflags --export=configure) INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
 
-target_tools=\
-	AR_FOR_TARGET=$(target)-ar \
-	AS_FOR_TARGET=$(target)-as \
-	LD_FOR_TARGET=$(target)-ld \
-	NM_FOR_TARGET=$(target)-nm \
-	OBJDUMP_FOR_TARGET=$(target)-objdump \
-	RANLIB_FOR_TARGET=$(target)-ranlib \
-	READELF_FOR_TARGET=$(target)-readelf \
-	STRIP_FOR_TARGET=$(target)-strip
+BUILDFLAGS:=$(shell dpkg-buildflags --export=configure) INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
 
-host_tools=\
-        SED=/bin/sed \
-        SHELL=/bin/sh \
-        BASH=/bin/bash \
-        CONFIG_SHELL=/bin/bash
+STAMPDIR=debian/stamp
 
+unpack_stamp=$(STAMPDIR)/unpack
+tar_stamp=$(STAMPDIR)/tar
 
-configure_flags = \
-	--enable-languages=c,c++ \
-	--prefix=/usr/lib \
-	--infodir=/usr/share/doc/$(package)/info \
+TARGET_TOOLS_RISCV=\
+	AR_FOR_TARGET=$(TARGET_RISCV)-ar \
+	AS_FOR_TARGET=$(TARGET_RISCV)-as \
+	LD_FOR_TARGET=$(TARGET_RISCV)-ld \
+	NM_FOR_TARGET=$(TARGET_RISCV)-nm \
+	OBJDUMP_FOR_TARGET=$(TARGET_RISCV)-objdump \
+	RANLIB_FOR_TARGET=$(TARGET_RISCV)-ranlib \
+	READELF_FOR_TARGET=$(TARGET_RISCV)-readelf \
+	STRIP_FOR_TARGET=$(TARGET_RISCV)-strip
+
+CONFIGURE_GCC_FLAGS_LIBSTDC = \
+	--disable-libstdcxx
+
+CONFIGURE_GCC_FLAGS_COMMON = \
+	--with-gcc-major-version-only \
 	--mandir=/usr/share/man \
-	--htmldir=/usr/share/doc/$(package)/html \
-	--pdfdir=/usr/share/doc/$(package)/pdf \
-	--bindir=/usr/bin \
-	--libexecdir=/usr/lib \
-	--libdir=/usr/lib \
-	--with-system-zlib \
-	--enable-multilib \
+	--enable-languages=c,c++,lto \
+	--enable-multilib-space \
 	--disable-decimal-float \
 	--disable-libffi \
 	--disable-libgomp \
@@ -76,28 +60,44 @@ configure_flags = \
 	--disable-libquadmath \
 	--disable-libssp \
 	--disable-libstdcxx-pch \
-	--disable-libstdcxx \
 	--disable-nls \
 	--disable-shared \
 	--disable-threads \
-	--with-arch=rv64imafdc \
 	--enable-tls \
 	--build=$(DEB_BUILD_GNU_TYPE) \
-	--host=$(DEB_HOST_GNU_TYPE) \
-	--target=$(target) \
+	--with-system-zlib \
 	--with-gnu-as \
 	--with-gnu-ld \
-	--with-headers=no \
-	--without-newlib \
-	"--with-pkgversion=$(deb_version)" \
+	"--with-pkgversion=$(DEB_VERSION)" \
 	--without-included-gettext \
-	$(host_tools) \
-	$(target_tools) \
-	$(build_flags) \
-	CFLAGS_FOR_TARGET='-Os -mcmodel=medany' CXXFLAGS_FOR_TARGET='-Os -mcmodel=medany'
+	--prefix=/usr \
+	--libexecdir=/usr/libexec \
+	--libdir=/usr/lib \
+	--host=$(DEB_HOST_GNU_TYPE) \
+	--with-headers=no \
+	--with-picolibc \
+	--without-newlib \
+	$(CONFIGURE_GCC_FLAGS_LIBSTDC) \
+	$(BUILDFLAGS) \
+	SED=/bin/sed \
+	SHELL=/bin/sh \
+	BASH=/bin/bash \
+	CONFIG_SHELL=/bin/bash
+
+CONFIGURE_GCC_FLAGS_RISCV = \
+	$(CONFIGURE_GCC_FLAGS_COMMON) \
+	--target=$(TARGET_RISCV) \
+	--enable-multilib \
+	--includedir=/usr/$(TARGET_RISCV)/include \
+	--infodir=/usr/share/doc/$(PACKAGE_GCC_RISCV)/info \
+	--htmldir=/usr/share/doc/$(PACKAGE_GCC_RISCV)/html \
+	--pdfdir=/usr/share/doc/$(PACKAGE_GCC_RISCV)/pdf \
+	--with-cmodel=medany \
+	--with-arch=rv64imafdc \
+	$(TARGET_TOOLS_RISCV)
 
 %:
-	dh $@ -D$(src_dir) -B$(build_dir)
+	dh $@ --parallel --with autoreconf
 
 $(unpack_stamp): $(tar_stamp)
 	set -ex; \
@@ -109,37 +109,48 @@ $(unpack_stamp): $(tar_stamp)
 	touch $@
 
 $(tar_stamp):
-	tar xf $(gcc_dir)/gcc-*.tar.*
-	mkdir -p $(stampdir)
+	tar xf $(GCC_TAR_DIR)/gcc-*.tar.*
+	mkdir -p $(STAMPDIR)
 	touch $@
 
 override_dh_autoreconf: $(unpack_stamp)
-	autoreconf2.69 -f -i $(upstream_dir)
+	autoreconf2.69 -f -i $(GCC_SOURCE_DIR)
 
 override_dh_auto_configure: $(unpack_stamp)
-	mkdir -p $(build_dir)
-	dh_auto_configure -D$(src_dir) -B$(build_dir) -- $(configure_flags)
+	dh_auto_configure -D$(GCC_SOURCE_DIR) -Bbuild-$(TARGET_RISCV) -- $(CONFIGURE_GCC_FLAGS_RISCV)
 
-override_dh_auto_clean:
-	rm -rf $(upstream_dir) $(build_dir) debian/tmp $(stampdir)
-	dh_autoreconf_clean
+override_dh_auto_build:
+	dh_auto_build -Bbuild-$(TARGET_RISCV) -- -j$(NPROC)
+
+override_dh_auto_install:
+	$(MAKE) install -C$(GCC_BUILD_DIR_RISCV) DESTDIR=$(GCC_DEB_TMP_DIR_RISCV)
 
 override_dh_auto_test:
 	@echo "no testing, that's way too painful"
-#	dh_auto_test -D$(src_dir) -B$(build_dir) --max-parallel=1
 
-override_dh_gencontrol:
-	dh_gencontrol -a -- -v$(deb_version) -Vlocal:Version=$(deb_upstream_version) -Vgcc:Version=$(source_version)
+override_dh_clean:
+	rm -rf $(GCC_BUILD_DIR_RISCV)
+	rm -rf $(GCC_DEB_TMP_DIR_RISCV)
+	rm -rf $(GCC_SOURCE_DEB_TMP_DIR)
+	rm -rf $(GCC_SOURCE_DIR)
+	rm -rf $(STAMPDIR)
+	dh_clean
 
-override_dh_auto_install:
-	mkdir -p $(top_dir)/debian/tmp
-	cd build && make install DESTDIR=$(top_dir)/debian/tmp
+override_dh_strip:
+	dh_strip -X.a
 
-override_dh_installchangelogs:
-	dh_installchangelogs $(upstream_dir)/ChangeLog
+override_dh_install:
+	dh_install -p$(PACKAGE_GCC_RISCV) --sourcedir $(GCC_DEB_TMP_DIR_RISCV)
+	mkdir -p $(GCC_SOURCE_DEB_TMP_DIR)/usr/src
+	tar --exclude=autom4te.cache --sort=name --mtime="@$(SOURCE_DATE_EPOCH)" --owner=0 --group=0 --numeric-owner --mode=go-w,u+rw -C $(GCC_SOURCE_DIR) -c -f - . | xz -T0 > $(GCC_SOURCE_DEB_TMP_DIR)/usr/src/$(PACKAGE_GCC_SOURCE).tar.xz
+	dh_install -p$(PACKAGE_GCC_SOURCE) --sourcedir $(GCC_SOURCE_DEB_TMP_DIR)
 
 override_dh_compress:
 	dh_compress -Xexamples/
 
-override_dh_strip:
-	dh_strip -X.a
+override_dh_installchangelogs:
+	dh_installchangelogs $(GCC_SOURCE_DIR)/ChangeLog
+
+override_dh_gencontrol:
+	dh_gencontrol -- -v$(DEB_VERSION) -Vgcc:Version=$(GCC_VERSION)
+

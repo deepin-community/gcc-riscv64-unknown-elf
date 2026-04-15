@@ -1,0 +1,64 @@
+From 331b8de31d6c80d8184beba4311df1a32bd42cb3 Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Sat, 24 Jan 2026 10:44:00 -0800
+Subject: [PATCH 12/12] picolibc: Add C++ bits when linking with C++ driver
+
+Use picolibcpp.ld and add crtbegin.o and crtend.o when linking C++
+applications (without -Os when using --enable-multilib-space).
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+
+fixup-picolibc-multilib
+---
+ gcc/config/picolibc-spec.h | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/gcc/config/picolibc-spec.h b/gcc/config/picolibc-spec.h
+index def290ee0..07e05abb8 100644
+--- a/gcc/config/picolibc-spec.h
++++ b/gcc/config/picolibc-spec.h
+@@ -23,6 +23,19 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #define PICOLIBC_LD "picolibc.ld"
++#define PICOLIBCPP_LD "picolibcpp.ld"
++
++#ifdef ENABLE_MULTILIB_SPACE
++#define EXCEPT_FILE_ELSE(_except, _noexcept) "%:if-driverlang(c++%{Os:SKIP} " _except " " _noexcept ")"
++#define EXCEPT_FILE(_except) "%:if-driverlang(c++%{Os:SKIP} " _except ")"
++#else
++#define EXCEPT_FILE_ELSE(_except, _noexcept) "%:if-driverlang(c++ " _except " " _noexcept ")"
++#define EXCEPT_FILE(_except) "%:if-driverlang(c++%{Os:SKIP} " _except ")"
++#endif
++
++#define PICOLIBC_SCRIPT   EXCEPT_FILE_ELSE(PICOLIBCPP_LD, PICOLIBC_LD)
++#define PICOLIBC_CRTEND   EXCEPT_FILE("crtend%O%s")
++#define PICOLIBC_CRTBEGIN EXCEPT_FILE("crtbegin%O%s")
+ 
+ /* Default to local-exec TLS model.  */
+ #undef OS_CC1_SPEC
+@@ -39,7 +52,7 @@
+  * Define vfscanf if --scanf is set
+  */
+ #define LIBC_LINK_SPEC							\
+-  " %{!shared:%{!r:%{!T*: %:if-exists-then-else(%:find-file(" PICOLIBC_LD ") -T%:find-file(" PICOLIBC_LD "))}}}" \
++  " %{!shared:%{!r:%{!T*: %:if-exists-then-else(%:find-file(" PICOLIBC_SCRIPT ") -T%:find-file(" PICOLIBC_SCRIPT "))}}}" \
+   " %{-printf=*:--defsym=" USER_LABEL_PREFIX "vfprintf=" USER_LABEL_PREFIX "__%*_vfprintf}" \
+   " %{-scanf=*:--defsym=" USER_LABEL_PREFIX "vfscanf=" USER_LABEL_PREFIX "__%*_vfscanf}"
+ 
+@@ -50,8 +63,11 @@
+ #undef LIB_SPEC
+ #define LIB_SPEC "--start-group -lc %{-oslib=*:-l%*} %(libgcc) --end-group"
+ 
++#undef ENDFILE_SPEC
++#define ENDFILE_SPEC PICOLIBC_CRTEND
++
+ /* Select alternate crt0 version if --crt0 is specified */
+ #undef  STARTFILE_SPEC
+-#define STARTFILE_SPEC "%{-crt0=*:crt0-%*%O%s; :crt0%O%s}"
++#define STARTFILE_SPEC "%{-crt0=*:crt0-%*%O%s; :crt0%O%s} " PICOLIBC_CRTBEGIN
+ 
+ #define EH_TABLES_CAN_BE_READ_ONLY 1
+-- 
+2.51.0
+

@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Keith Packard <keithp@keithp.com>
 Build-Depends:
  autoconf2.69,
- binutils-riscv64-unknown-elf (>= 2.38.90),
+ binutils-riscv64-unknown-elf (>= 2.45.50.20260019),
  bison,
  debhelper (>= 10),
  dejagnu,
@@ -33,6 +33,18 @@ Vcs-Browser: https://salsa.debian.org/debian/gcc-riscv64-unknown-elf
 
 Package: gcc-riscv64-unknown-elf
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, binutils-riscv64-unknown-elf (>= 2.38.90)
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}, binutils-riscv64-unknown-elf (>= 2.45.50.20260019)
+Recommends: picolibc-riscv64-unknown-elf
 Description: GCC cross compiler for Risc-V processors
  Bare metal compiler for embedded Risc-V chips, both 32-bit and 64-bit
+
+Package: gcc-riscv64-unknown-elf-source
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Description: GCC cross compiler for Risc-V  processors (source)
+ Bare metal compiler for embedded Risc-V chips, both 32-bit and 64-bit
+ .
+ This package contains the sources and patches which are needed
+ to build the GNU Compiler Collection (GCC) for Risc-V processors.

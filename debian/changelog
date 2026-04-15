@@ -1,3 +1,31 @@
+gcc-riscv64-unknown-elf (23) unstable; urgency=medium
+
+  * Update to latest binutils with new paths
+
+  * Add multilib-space and picolibc compiler patches
+
+  * Add source package gcc-riscv64-unknown-elf-source for libstdc++
+  
+ -- Keith Packard <keithp@keithp.com>  Thu, 22 Jan 2026 16:53:48 -0800
+
+gcc-riscv64-unknown-elf (22) unstable; urgency=medium
+
+  * Change default for -fzero-init-padding-bits to 'all'
+
+ -- Keith Packard <keithp@keithp.com>  Fri, 26 Sep 2025 10:00:45 -0700
+
+gcc-riscv64-unknown-elf (21) unstable; urgency=medium
+
+  * Update to GCC version 15.2.0
+
+ -- Keith Packard <keithp@keithp.com>  Mon, 08 Sep 2025 22:13:36 -0700
+
+gcc-riscv64-unknown-elf (20) unstable; urgency=medium
+
+  * Support cross building.
+
+ -- Keith Packard <keithp@keithp.com>  Fri, 05 Sep 2025 13:21:30 -0700
+
 gcc-riscv64-unknown-elf (19) unstable; urgency=medium
 
   * Use local copy of gcc source code.

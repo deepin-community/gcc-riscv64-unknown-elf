@@ -1,0 +1,38 @@
+From 05d2cee8e8a01d0912584544a5c3dcc419baf8bc Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 24 Oct 2024 09:02:18 -0700
+Subject: [PATCH 09/12] arm: Add missing multilib default values
+
+The arm multilib configuration includes two more parameters which
+affect multilib selection, marm/mthumb and mfloat-abi. Without those,
+the default multilib selection is mis-specified and the only reason it
+works is because '.' is the fall-back path.
+
+Add "marm" and "mfloat-abi=soft" to MULTILIB_DEFAULTS to actually
+match when the compiler is run without any target parameters.
+
+This hasn't caused any problems in practice because there are no
+non-default multilib options which can be applied to the default
+-march target as it has neither an FPU nor any branch protection
+support. Specifying another cpu or architecture always sets -marm and
+-mfloat-abi and so those multilib configuration don't rely on the
+defaults.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/config/arm/arm-mlib.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gcc/config/arm/arm-mlib.h b/gcc/config/arm/arm-mlib.h
+index 211f222f0..9ef75e540 100644
+--- a/gcc/config/arm/arm-mlib.h
++++ b/gcc/config/arm/arm-mlib.h
+@@ -19,4 +19,4 @@
+    along with GCC; see the file COPYING3.  If not see
+    <http://www.gnu.org/licenses/>.  */
+ 
+-#define MULTILIB_DEFAULTS { "mbranch-protection=none" }
++#define MULTILIB_DEFAULTS { "marm", "mfloat-abi=soft", "mbranch-protection=none",  }
+-- 
+2.51.0
+

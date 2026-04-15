@@ -1,7 +1,7 @@
-From af1cd64d0f81aa0be0a84cf90fa95d063f4850b0 Mon Sep 17 00:00:00 2001
+From e915cb4ee2f24d16ea7c24112185be838507c1e4 Mon Sep 17 00:00:00 2001
 From: Keith Packard <keithp@keithp.com>
-Date: Sun, 24 Jan 2021 14:20:33 -0800
-Subject: [PATCH 4/4] Remove use of include_next from c++ headers
+Date: Mon, 8 Sep 2025 22:21:30 -0700
+Subject: [PATCH 04/12] Remove use of include_next from c++ headers
 
 Using include_next bypasses the default header search path and lets
 files later in the include path take priority over earlier files.
@@ -40,11 +40,11 @@ Signed-off-by: Keith Packard <keithp@keithp.com>
  21 files changed, 22 insertions(+), 22 deletions(-)
 
 diff --git a/libstdc++-v3/include/bits/std_abs.h b/libstdc++-v3/include/bits/std_abs.h
-index 48d44160b..d30c44e51 100644
+index 35ec4d374..ee1ffac5a 100644
 --- a/libstdc++-v3/include/bits/std_abs.h
 +++ b/libstdc++-v3/include/bits/std_abs.h
-@@ -35,9 +35,9 @@
- #include <bits/c++config.h>
+@@ -41,9 +41,9 @@
+ #pragma GCC diagnostic ignored "-Wlong-long"
  
  #define _GLIBCXX_INCLUDE_NEXT_C_HEADERS
 -#include_next <stdlib.h>
@@ -56,192 +56,204 @@ index 48d44160b..d30c44e51 100644
  #undef _GLIBCXX_INCLUDE_NEXT_C_HEADERS
  
 diff --git a/libstdc++-v3/include/c/cassert b/libstdc++-v3/include/c/cassert
-index 5cd11fff9..01d8c7fa5 100644
+index 540278b1b..4bc737720 100644
 --- a/libstdc++-v3/include/c/cassert
 +++ b/libstdc++-v3/include/c/cassert
-@@ -31,4 +31,4 @@
- #pragma GCC system_header
+@@ -36,6 +36,6 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #include <bits/c++config.h>
 -#include_next <assert.h>
 +#include <assert.h>
+ 
+ #pragma GCC diagnostic pop
 diff --git a/libstdc++-v3/include/c/cctype b/libstdc++-v3/include/c/cctype
-index c6f650394..1540a3259 100644
+index 8c0407851..d3d9e7b54 100644
 --- a/libstdc++-v3/include/c/cctype
 +++ b/libstdc++-v3/include/c/cctype
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <ctype.h>
 +#include <ctype.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cerrno b/libstdc++-v3/include/c/cerrno
-index 9e47b182d..250ea5d77 100644
+index 4f0e75829..76e01f129 100644
 --- a/libstdc++-v3/include/c/cerrno
 +++ b/libstdc++-v3/include/c/cerrno
-@@ -41,7 +41,7 @@
- #pragma GCC system_header
+@@ -46,7 +46,7 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #include <bits/c++config.h>
 -#include_next <errno.h>
 +#include <errno.h>
  
- // Adhere to section 17.4.1.2 clause 5 of ISO 14882:1998
- #ifndef errno
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cfloat b/libstdc++-v3/include/c/cfloat
-index 81d9772ed..660440fc8 100644
+index 2a2e5228b..f9aa87c2c 100644
 --- a/libstdc++-v3/include/c/cfloat
 +++ b/libstdc++-v3/include/c/cfloat
-@@ -32,6 +32,6 @@
- #pragma GCC system_header
+@@ -37,7 +37,7 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #include <bits/c++config.h>
 -#include_next <float.h>
 +#include <float.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/climits b/libstdc++-v3/include/c/climits
-index 255bed411..919e1ec48 100644
+index 58a7b1a00..f18ce54c0 100644
 --- a/libstdc++-v3/include/c/climits
 +++ b/libstdc++-v3/include/c/climits
-@@ -32,6 +32,6 @@
- #pragma GCC system_header
+@@ -37,7 +37,7 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #include <bits/c++config.h>
 -#include_next <limits.h>
 +#include <limits.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/clocale b/libstdc++-v3/include/c/clocale
-index 4258df195..95357d40c 100644
+index f248a273a..43627f176 100644
 --- a/libstdc++-v3/include/c/clocale
 +++ b/libstdc++-v3/include/c/clocale
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <locale.h>
 +#include <locale.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cmath b/libstdc++-v3/include/c/cmath
-index 43020eee9..619031ba8 100644
+index ef1bbf23f..520479740 100644
 --- a/libstdc++-v3/include/c/cmath
 +++ b/libstdc++-v3/include/c/cmath
-@@ -33,7 +33,7 @@
- 
- #include <bits/c++config.h>
+@@ -38,7 +38,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <math.h>
 +#include <math.h>
  
- // Get rid of those macros defined in <math.h> in lieu of real functions.
- #undef abs
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/csetjmp b/libstdc++-v3/include/c/csetjmp
-index 4a5b03345..4a7744ba1 100644
+index 26ea1b2bc..41ca4fccc 100644
 --- a/libstdc++-v3/include/c/csetjmp
 +++ b/libstdc++-v3/include/c/csetjmp
-@@ -31,7 +31,7 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <setjmp.h>
 +#include <setjmp.h>
  
- // Get rid of those macros defined in <setjmp.h> in lieu of real functions.
- #undef longjmp
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/csignal b/libstdc++-v3/include/c/csignal
-index 040b48368..afe91f7c7 100644
+index cf6d95f9b..ab44fbf08 100644
 --- a/libstdc++-v3/include/c/csignal
 +++ b/libstdc++-v3/include/c/csignal
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <signal.h>
 +#include <signal.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cstdarg b/libstdc++-v3/include/c/cstdarg
-index 5d97e043d..568dc0799 100644
+index 7dbbea484..f7a94ea4e 100644
 --- a/libstdc++-v3/include/c/cstdarg
 +++ b/libstdc++-v3/include/c/cstdarg
-@@ -32,6 +32,6 @@
- #pragma GCC system_header
+@@ -37,7 +37,7 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #undef __need___va_list
 -#include_next <stdarg.h>
 +#include <stdarg.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cstddef b/libstdc++-v3/include/c/cstddef
-index 4fd889a1d..28997b73a 100644
+index cb0abcd89..028d9954e 100644
 --- a/libstdc++-v3/include/c/cstddef
 +++ b/libstdc++-v3/include/c/cstddef
-@@ -35,6 +35,6 @@
+@@ -40,7 +40,7 @@
  #define __need_ptrdiff_t
  #define __need_NULL
  #define __need_offsetof
 -#include_next <stddef.h>
 +#include <stddef.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cstdio b/libstdc++-v3/include/c/cstdio
-index 01293054d..6632e5b09 100644
+index 4092bf46e..7569619d6 100644
 --- a/libstdc++-v3/include/c/cstdio
 +++ b/libstdc++-v3/include/c/cstdio
-@@ -31,7 +31,7 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <stdio.h>
 +#include <stdio.h>
  
- // Get rid of those macros defined in <stdio.h> in lieu of real functions.
- #undef clearerr
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cstdlib b/libstdc++-v3/include/c/cstdlib
-index f5707f8a8..4156882e0 100644
+index a60afb0aa..7fb1d43ab 100644
 --- a/libstdc++-v3/include/c/cstdlib
 +++ b/libstdc++-v3/include/c/cstdlib
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <stdlib.h>
 +#include <stdlib.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cstring b/libstdc++-v3/include/c/cstring
-index 0082080fc..209ccd112 100644
+index f12c6d5ab..ee7f755f3 100644
 --- a/libstdc++-v3/include/c/cstring
 +++ b/libstdc++-v3/include/c/cstring
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <string.h>
 +#include <string.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/ctime b/libstdc++-v3/include/c/ctime
-index 5476ff7da..33c61aa08 100644
+index 137a20433..36f75402e 100644
 --- a/libstdc++-v3/include/c/ctime
 +++ b/libstdc++-v3/include/c/ctime
-@@ -31,6 +31,6 @@
- 
- #pragma GCC system_header
+@@ -36,7 +36,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
 -#include_next <time.h>
 +#include <time.h>
  
- #endif
+ #pragma GCC diagnostic pop
+ 
 diff --git a/libstdc++-v3/include/c/cuchar b/libstdc++-v3/include/c/cuchar
-index 430d1ff50..7b2c9d738 100644
+index feefd58be..0f90cd370 100644
 --- a/libstdc++-v3/include/c/cuchar
 +++ b/libstdc++-v3/include/c/cuchar
-@@ -39,7 +39,7 @@
+@@ -41,7 +41,7 @@
  #include <cwchar>
  
  #if _GLIBCXX_USE_C11_UCHAR_CXX11
@@ -251,23 +263,23 @@ index 430d1ff50..7b2c9d738 100644
  
  #endif // C++11
 diff --git a/libstdc++-v3/include/c/cwchar b/libstdc++-v3/include/c/cwchar
-index 7a62eb74a..c1857099e 100644
+index dd555b8eb..c4bf2117f 100644
 --- a/libstdc++-v3/include/c/cwchar
 +++ b/libstdc++-v3/include/c/cwchar
-@@ -36,7 +36,7 @@
- #include <ctime>
+@@ -41,7 +41,7 @@
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  
  #if _GLIBCXX_HAVE_WCHAR_H
 -#include_next <wchar.h>
 +#include <wchar.h>
  #endif
  
- // Need to do a bit of trickery here with mbstate_t as char_traits
+ #pragma GCC diagnostic pop
 diff --git a/libstdc++-v3/include/c/cwctype b/libstdc++-v3/include/c/cwctype
-index 011ceadbb..6a67549ea 100644
+index c866abaa5..6188bc3f9 100644
 --- a/libstdc++-v3/include/c/cwctype
 +++ b/libstdc++-v3/include/c/cwctype
-@@ -34,7 +34,7 @@
+@@ -39,7 +39,7 @@
  #include <bits/c++config.h>
  
  #if _GLIBCXX_HAVE_WCTYPE_H
@@ -275,33 +287,33 @@ index 011ceadbb..6a67549ea 100644
 +#include <wctype.h>
  #endif
  
- #endif
+ #pragma GCC diagnostic pop
 diff --git a/libstdc++-v3/include/c_global/cmath b/libstdc++-v3/include/c_global/cmath
-index dd0174f19..2886d2cb7 100644
+index 27c21ca19..762b5f5cf 100644
 --- a/libstdc++-v3/include/c_global/cmath
 +++ b/libstdc++-v3/include/c_global/cmath
-@@ -44,7 +44,7 @@
- #include <bits/cpp_type_traits.h>
- #include <ext/type_traits.h>
+@@ -52,7 +52,7 @@
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  #define _GLIBCXX_INCLUDE_NEXT_C_HEADERS
 -#include_next <math.h>
 +#include <math.h>
  #undef _GLIBCXX_INCLUDE_NEXT_C_HEADERS
- #include <bits/std_abs.h>
+ #pragma GCC diagnostic pop
  
 diff --git a/libstdc++-v3/include/c_global/cstdlib b/libstdc++-v3/include/c_global/cstdlib
-index 69e7a39eb..a1a60fade 100644
+index ced924793..4acc9339e 100644
 --- a/libstdc++-v3/include/c_global/cstdlib
 +++ b/libstdc++-v3/include/c_global/cstdlib
-@@ -76,7 +76,7 @@ namespace std
- // Need to ensure this finds the C library's <stdlib.h> not a libstdc++
- // wrapper that might already be installed later in the include search path.
+@@ -80,7 +80,7 @@ namespace std
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wpedantic" // include_next
  #define _GLIBCXX_INCLUDE_NEXT_C_HEADERS
 -#include_next <stdlib.h>
 +#include <stdlib.h>
  #undef _GLIBCXX_INCLUDE_NEXT_C_HEADERS
- #include <bits/std_abs.h>
+ #pragma GCC diagnostic pop
  
 -- 
-2.45.2
+2.51.0
 

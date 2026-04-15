@@ -1,0 +1,29 @@
+From 820bbb43500e5713aeef870dea4278acd236d7bf Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Fri, 26 Sep 2025 09:56:52 -0700
+Subject: [PATCH 05/12] Change default for -fzero-init-padding-bits to all
+
+This ensures that structs and unions have well defined contents when
+initialized, rather than only initializing the first union member.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ gcc/common.opt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gcc/common.opt b/gcc/common.opt
+index e3fa0dace..38eca9464 100644
+--- a/gcc/common.opt
++++ b/gcc/common.opt
+@@ -3574,7 +3574,7 @@ Common RejectNegative Joined
+ Clear call-used registers upon function return.
+ 
+ fzero-init-padding-bits=
+-Common Joined RejectNegative Enum(zero_init_padding_bits_kind) Var(flag_zero_init_padding_bits) Init(ZERO_INIT_PADDING_BITS_STANDARD)
++Common Joined RejectNegative Enum(zero_init_padding_bits_kind) Var(flag_zero_init_padding_bits) Init(ZERO_INIT_PADDING_BITS_ALL)
+ -fzero-init-padding-bits=[standard|unions|all]	Zero padding bits in initializers.
+ 
+ Enum
+-- 
+2.51.0
+

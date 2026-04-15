@@ -1,0 +1,224 @@
+From 3af94f090eac69b2449a63d3436ae14474f96e5f Mon Sep 17 00:00:00 2001
+From: Keith Packard <keithp@keithp.com>
+Date: Thu, 24 Oct 2024 09:02:18 -0700
+Subject: [PATCH 10/12] arm: Add missing multilib default values
+
+The arm multilib configuration includes two more parameters which
+affect multilib selection, marm/mthumb and mfloat-abi. Without those,
+the default multilib selection is mis-specified and the only reason it
+works is because '.' is the fall-back path.
+
+Add "marm" and "mfloat-abi=soft" to MULTILIB_DEFAULTS to actually
+match when the compiler is run without any target parameters.
+
+This hasn't caused any problems in practice because there are no
+non-default multilib options which can be applied to the default
+-march target as it has neither an FPU nor any branch protection
+support. Specifying another cpu or architecture always sets -marm and
+-mfloat-abi and so those multilib configuration don't rely on the
+defaults.
+
+Signed-off-by: Keith Packard <keithp@keithp.com>
+---
+ config-ml.in     | 19 ++++++++++++++-----
+ config/multi.m4  | 19 +++++++++++++++++++
+ configure.ac     |  6 ++++++
+ gcc/Makefile.in  | 44 +++++++++++++++++++++++++++++++++++++++-----
+ gcc/configure.ac | 13 +++++++++++++
+ 5 files changed, 91 insertions(+), 10 deletions(-)
+
+diff --git a/config-ml.in b/config-ml.in
+index 7934a1ddf..89861f88c 100644
+--- a/config-ml.in
++++ b/config-ml.in
+@@ -174,8 +174,8 @@ scan_arguments ()
+ eval scan_arguments "${ac_configure_args}"
+ unset scan_arguments
+ 
+-# Only do this if --enable-multilib.
+-if [ "${enable_multilib}" = yes ]; then
++# Only do this if --enable-multilib or --enable-multilib-space.
++if [ "${enable_multilib}" = yes -o "${enable_multilib_space}" = yes -o "${enable_multilib_space}" = except ]; then
+ 
+ # Compute whether this is the library's top level directory
+ # (ie: not a multilib subdirectory, and not a subdirectory like newlib/src).
+@@ -495,7 +495,12 @@ multidirs=`echo "$multidirs" | sed -e 's/^[ ][ ]*//' -e 's/[ ][ ]*$//' -e 's/[ ]
+ # Add code to library's top level makefile to handle building the multilib
+ # subdirs.
+ 
+-cat > Multi.tem <<\EOF
++cat > Multi.tem << EOF
++
++enable_multilib_space=${enable_multilib_space}
++EOF
++
++cat >> Multi.tem <<\EOF
+ 
+ PWD_COMMAND=$${PWDCMD-pwd}
+ 
+@@ -514,6 +519,10 @@ multi-do:
+ 	    else \
+ 	      if [ -d ../$${dir}/$${lib} ]; then \
+ 		flags=`echo $$i | sed -e 's/^[^;]*;//' -e 's/@/ -/g'`; \
++		cxxflags="$${flags}"; \
++		if test "$(enable_multilib_space)" = "yes"; then \
++		  case "$$i" in *@Os*) cxxflags="$${flags} -fno-exceptions -fno-asynchronous-unwind-tables"; ;; esac ; \
++		fi; \
+ 		libsuffix_=`$${compiler} $${flags} --print-multi-os-directory`; \
+ 		if (cd ../$${dir}/$${lib}; $(MAKE) $(subst \
+ 				-B$(build_tooldir)/lib/, \
+@@ -528,9 +537,9 @@ multi-do:
+ 				exec_prefix="$(exec_prefix)" \
+ 				GOCFLAGS="$(GOCFLAGS) $${flags}" \
+ 				GDCFLAGS="$(GDCFLAGS) $${flags}" \
+-				CXXFLAGS="$(CXXFLAGS) $${flags}" \
++				CXXFLAGS="$(CXXFLAGS) $${cxxflags}" \
+ 				LIBCFLAGS="$(LIBCFLAGS) $${flags}" \
+-				LIBCXXFLAGS="$(LIBCXXFLAGS) $${flags}" \
++				LIBCXXFLAGS="$(LIBCXXFLAGS) $${cxxflags}" \
+ 				LDFLAGS="$(LDFLAGS) $${flags}" \
+ 				MULTIFLAGS="$${flags}" \
+ 				DESTDIR="$(DESTDIR)" \
+diff --git a/config/multi.m4 b/config/multi.m4
+index 10680a5b3..3ef6657a5 100644
+--- a/config/multi.m4
++++ b/config/multi.m4
+@@ -22,6 +22,25 @@ AC_ARG_ENABLE(multilib,
+  esac],
+ 	      [multilib=yes])
+ 
++# Determine whether or not -Os multilibs are enabled.
++#
++# no:     Do not add -Os libs
++# except: Add -Os libs, C++ libs will leave exceptions and unwind options alone
++# yes:    Add -Os libs, C++ libs will disable exceptions and unwinding
++#
++AC_ARG_ENABLE(multilib-space,
++[AS_HELP_STRING([--enable-multilib-space=yes,no,except],
++                [enable extra -Os variant for every multilib ABI])],
++[case "$enableval" in
++  yes|except|no) ;;
++  *) AC_MSG_ERROR([bad value $enableval for multilib-space option]) ;;
++ esac;
++ case "$enable_multilib_space"":$enable_target_optspace" in
++ no:*|*:no) ;;
++ *:yes) AC_MSG_ERROR([Cannot combine --enable-multilib-space with --enable-target-optspace]) ;;
++ esac],
++	      [enable_multilib_space=no])
++
+ # We may get other options which we leave undocumented:
+ # --with-target-subdir, --with-multisrctop, --with-multisubdir
+ # See config-ml.in if you want the gory details.
+diff --git a/configure.ac b/configure.ac
+index 730db3c14..e8d95e968 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -3711,6 +3711,12 @@ case "$target:$have_compiler:$host:$target:$enable_multilib" in
+     ;;
+ esac
+ 
++case "${enable_multilib_space}:${enable_target_optspace}" in
++yes:yes|except:yes)
++  AC_MSG_ERROR([Cannot combine --enable-multilib-space with --enable-target-optspace])
++  ;;
++esac
++
+ # Default to --enable-multilib.
+ if test x${enable_multilib} = x ; then
+   target_configargs="--enable-multilib ${target_configargs}"
+diff --git a/gcc/Makefile.in b/gcc/Makefile.in
+index 55b4cd7db..8df474d11 100644
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -2473,25 +2473,59 @@ libgcc.mvars: config.status Makefile specs xgcc$(exeext)
+ 
+ 	mv tmp-libgcc.mvars libgcc.mvars
+ 
++ifneq (@enable_multilib_space@,no)
++
++# When multilib has been disabled, override all settings
++ifneq (@enable_multilib@,yes)
++MULTILIB_OPTIONS	=
++MULTILIB_DIRNAMES	=
++MULTILIB_MATCHES	=
++MULTILIB_OSDIRNAMES     =
++MULTILIB_REQUIRED       =
++MULTILIB_EXCEPTIONS     =
++MULTILIB_REUSE          =
++endif
++
++MULTILIB_OPTIONS	+= Os
++MULTILIB_DIRNAMES	+= space
++MULTILIB_MATCHES	+= Os=Oz
++
++MULTILIB_OSDIRNAMES_SPACE = $(MULTILIB_OSDIRNAMES)\
++	$(if $(findstring =,$(MULTILIB_OSDIRNAMES)),\
++	  $(foreach OSD,$(MULTILIB_OSDIRNAMES),$(subst =,/Os=,$(OSD))/space),\
++	  $(if $(MULTILIB_OSDIRNAMES),space,))
++MULTILIB_REQUIRED_SPACE = $(if $(MULTILIB_REQUIRED),Os $(foreach REQ, $(MULTILIB_REQUIRED), $(REQ) $(REQ)/Os),)
++MULTILIB_EXCEPTIONS_SPACE = $(foreach EXC, $(MULTILIB_EXCEPTIONS), $(EXC) $(EXC)/Os)
++MULTILIB_REUSE_SPACE = $(foreach REU, $(MULTILIB_REUSE), $(REU) $(subst =,/Os=,$(REU))/Os)
++MULTILIB_ENABLE = yes
++else
++MULTILIB_OSDIRNAMES_SPACE = $(MULTILIB_OSDIRNAMES)
++MULTILIB_REQUIRED_SPACE = $(MULTILIB_REQUIRED)
++MULTILIB_EXCEPTIONS_SPACE = $(MULTILIB_EXCEPTIONS)
++MULTILIB_REUSE_SPACE = $(MULTILIB_REUSE)
++MULTILIB_ENABLE = @enable_multilib@
++endif
++
+ # Use the genmultilib shell script to generate the information the gcc
+ # driver program needs to select the library directory based on the
+ # switches.
+ multilib.h: s-mlib; @true
+ s-mlib: $(srcdir)/genmultilib Makefile
+ 	if test @enable_multilib@ = yes \
++           || test @enable_multilib_space@ != no \
+ 	   || test -n "$(MULTILIB_OSDIRNAMES)"; then \
+ 	  $(SHELL) $(srcdir)/genmultilib \
+ 	    "$(MULTILIB_OPTIONS)" \
+ 	    "$(MULTILIB_DIRNAMES)" \
+ 	    "$(MULTILIB_MATCHES)" \
+-	    "$(MULTILIB_EXCEPTIONS)" \
++	    "$(MULTILIB_EXCEPTIONS_SPACE)" \
+ 	    "$(MULTILIB_EXTRA_OPTS)" \
+ 	    "$(MULTILIB_EXCLUSIONS)" \
+-	    "$(MULTILIB_OSDIRNAMES)" \
+-	    "$(MULTILIB_REQUIRED)" \
++	    "$(MULTILIB_OSDIRNAMES_SPACE)" \
++	    "$(MULTILIB_REQUIRED_SPACE)" \
+ 	    "$(if $(MULTILIB_OSDIRNAMES),,$(MULTIARCH_DIRNAME))" \
+-	    "$(MULTILIB_REUSE)" \
+-	    "@enable_multilib@" \
++	    "$(MULTILIB_REUSE_SPACE)" \
++	    "$(MULTILIB_ENABLE)" \
+ 	    > tmp-mlib.h; \
+ 	else \
+ 	  $(SHELL) $(srcdir)/genmultilib '' '' '' '' '' '' '' '' \
+diff --git a/gcc/configure.ac b/gcc/configure.ac
+index 6969c1e09..d44b44533 100644
+--- a/gcc/configure.ac
++++ b/gcc/configure.ac
+@@ -864,6 +864,19 @@ AC_ARG_ENABLE(multilib,
+ [], [enable_multilib=yes])
+ AC_SUBST(enable_multilib)
+ 
++# Determine whether or not -Os multilibs are enabled.
++AC_ARG_ENABLE(multilib-space,
++[AS_HELP_STRING([--enable-multilib-space=yes,no,except],
++                [enable extra -Os variant for every multilib ABI])],
++[case "$enableval" in
++  yes|no|except) ;;
++  *) AC_MSG_ERROR([bad value $enableval for multilib-space option]) ;;
++ esac],
++	      [enable_multilib_space=no])
++if test x$enable_multilib_space != xno; then
++  AC_DEFINE(ENABLE_MULTILIB_SPACE, 1, [If --enable-multilib-space is used])
++fi
++
+ # Determine whether or not multiarch is enabled.
+ AC_ARG_ENABLE(multiarch,
+ [AS_HELP_STRING([--enable-multiarch],
+-- 
+2.51.0
+
